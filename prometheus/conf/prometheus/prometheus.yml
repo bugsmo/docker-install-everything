@@ -1,0 +1,52 @@
+global:
+  scrape_interval:     15s
+  evaluation_interval: 15s
+
+  external_labels:
+      monitor: 'dashboard'
+
+alerting:
+ alertmanagers:
+ - static_configs:
+    - targets:
+        - "alertmanager:9093"
+
+rule_files:
+  - /etc/prometheus/rules/*.rules
+
+scrape_configs:  
+  - job_name: 'prometheus'
+    scrape_interval: 15s
+    static_configs:
+      - targets: ['prometheus:9090']
+
+  # TenSunS 配置，https://github.com/starsliao/TenSunS
+  - job_name: 'blackbox_exporter'
+    scrape_interval: 15s
+    scrape_timeout: 5s
+    metrics_path: /probe
+    consul_sd_configs:
+      - server: 'consul:8500'
+        token: '55d0c523-1230-40bf-8f3b-3723a14429e0'
+        services: ['blackbox_exporter']
+    relabel_configs:
+      - source_labels: ["__meta_consul_service_metadata_instance"]
+        target_label: __param_target
+      - source_labels: [__meta_consul_service_metadata_module]
+        target_label: __param_module
+      - source_labels: [__meta_consul_service_metadata_module]
+        target_label: module
+      - source_labels: ["__meta_consul_service_metadata_company"]
+        target_label: company
+      - source_labels: ["__meta_consul_service_metadata_env"]
+        target_label: env
+      - source_labels: ["__meta_consul_service_metadata_name"]
+        target_label: name
+      - source_labels: ["__meta_consul_service_metadata_project"]
+        target_label: project
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox_exporter:9115
+
+

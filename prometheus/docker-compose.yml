@@ -1,0 +1,116 @@
+version: "3"
+services:
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    user: root
+    restart: always
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./conf/prometheus:/etc/prometheus
+      - ./data/prometheus/prometheus_db:/prometheus 
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    networks:
+      - TenSunS
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    user: root
+    restart: always
+    ports:
+      - "3000:3000"
+    volumes:
+      #- ./conf/grafana:/etc/grafana
+      - ./data/prometheus/grafana_data:/var/lib/grafana
+    depends_on:  
+      - prometheus
+    networks:
+      - TenSunS
+
+  alertmanager:
+    image: prom/alertmanager
+    hostname: alertmanager
+    container_name: alertmanager
+    user: root
+    restart: always
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./conf/alertmanager:/etc/alertmanager
+      - ./data/prometheus/alertmanager_data:/var/lib/alertmanager
+    networks:
+      - TenSunS
+
+  blackbox_exporter:
+    image: prom/blackbox-exporter:latest
+    hostname: blackbox_exporter
+    restart: always
+    container_name: blackbox_exporter
+    user: root
+    ports:
+      - "9115:9115"
+    volumes:
+      - ./conf/blackbox_exporter:/etc/blackbox_exporter
+    command:
+      - '--config.file=/etc/blackbox_exporter/blackbox.yml'
+    networks:
+      - TenSunS
+
+  consul:
+    image: swr.cn-south-1.myhuaweicloud.com/starsl.cn/consul:latest
+    container_name: consul
+    hostname: consul
+    restart: always
+    ports:
+      - "8500:8500"
+    volumes:
+     - ./data/tensuns/consul/data:/consul/data
+     - ./conf/tensuns/consul/config:/consul/config
+     - /usr/share/zoneinfo/PRC:/etc/localtime
+    command: "agent"
+    networks:
+      - TenSunS
+
+  flask-consul:
+    image: swr.cn-south-1.myhuaweicloud.com/starsl.cn/flask-consul:latest
+    container_name: flask-consul
+    hostname: flask-consul
+    restart: always
+    volumes:
+      - /usr/share/zoneinfo/PRC:/etc/localtime
+    environment:
+      consul_token: 55d0c523-1230-40bf-8f3b-3723a14429e0
+      consul_url: http://consul:8500/v1
+      admin_passwd: e73ad260
+      log_level: INFO
+    depends_on:
+      - consul
+    networks:
+      - TenSunS
+
+  nginx-consul:
+    image: swr.cn-south-1.myhuaweicloud.com/starsl.cn/nginx-consul:latest
+    container_name: nginx-consul
+    hostname: nginx-consul
+    restart: always
+    ports:
+      - "1026:1026"
+    volumes:
+      - /usr/share/zoneinfo/PRC:/etc/localtime
+    depends_on:
+      - flask-consul
+    networks:
+      - TenSunS
+
+networks:
+  TenSunS:
+    name: TenSunS
+    driver: bridge
+    ipam:
+      driver: default
